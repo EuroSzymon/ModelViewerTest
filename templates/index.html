@@ -11,7 +11,7 @@
             font-family: 'Inter', sans-serif;
         }
 
-        #speedIndicator, #totalObjectsIndicator, #spawnModeIndicator, #directionIndicator {
+        #speedIndicator, #totalObjectsIndicator, #spawnModeIndicator, #directionIndicator, #colorPickerContainer, #spinModeIndicator {
             position: absolute;
             top: 10px;
             color: white;
@@ -26,11 +26,19 @@
         }
 
         #spawnModeIndicator {
-            left: 300px;
+            left: 370px; 
         }
 
         #directionIndicator {
             left: 600px;
+        }
+
+        #spinModeIndicator {
+            left: 560px; 
+        }
+
+        #colorPickerContainer {
+            left: 150px;
         }
 
         #shapeIndicators {
@@ -44,7 +52,11 @@
         .shapeIndicator {
             margin-top: 10px;
         }
-    </style>    
+
+        #affectColorToggle {
+            margin-top: 5px;
+        }
+    </style>
     <title>Model Viewer Test</title>
     
     <script type="module">
@@ -63,9 +75,8 @@
             let coneGeometry = new THREE.ConeGeometry(1, 2, 32);
             let triangleGeometry = new THREE.ConeGeometry(1, 2, 3);
 
-            let grayMaterial = new THREE.MeshBasicMaterial({ color: 0x888888 });
-
-            let mainMesh = new THREE.Mesh(cubeGeometry, grayMaterial);
+            let mainColor = 0x888888;  
+            let mainMesh = new THREE.Mesh(cubeGeometry, new THREE.MeshBasicMaterial({ color: mainColor }));
             scene.add(mainMesh);
 
             let speed = 1.0;
@@ -74,15 +85,42 @@
             let totalSpawnedCount = Number(sessionStorage.getItem('totalSpawned')) || 0;
             let selectedObjects = new Set();
             let isMoving = false;
-            let isFrozen = false;
             let spawnMode = 'Random';
             let spawnModes = ['Random', 'Cube', 'Cone', 'Triangle'];
             let spawnModeIndex = 0;
             let canChangeShape = true;
+            let affectAllObjects = false; 
+            let originalColors = {}; 
 
             let speedIndicator = document.createElement('div');
             speedIndicator.id = 'speedIndicator';
             document.body.appendChild(speedIndicator);
+
+            let colorPickerContainer = document.createElement('div');
+            colorPickerContainer.id = 'colorPickerContainer';
+            document.body.appendChild(colorPickerContainer);
+
+            let colorPicker = document.createElement('input');
+            colorPicker.id = 'colorPicker';
+            colorPicker.type = 'color';
+            colorPicker.value = '#888888';
+            colorPickerContainer.appendChild(colorPicker);
+
+            let affectColorToggle = document.createElement('input');
+            affectColorToggle.type = 'checkbox';
+            affectColorToggle.id = 'affectColorToggle';
+            affectColorToggle.checked = false; 
+            colorPickerContainer.appendChild(affectColorToggle);
+
+            let affectColorLabel = document.createElement('label');
+            affectColorLabel.htmlFor = 'affectColorToggle';
+            affectColorLabel.textContent = 'Affect All Objects';
+            colorPickerContainer.appendChild(affectColorLabel);
+
+       
+            affectColorToggle.style.marginLeft = '5px';
+            affectColorLabel.style.marginLeft = '5px';
+            affectColorToggle.style.marginTop = '5px';
 
             let shapeIndicatorsContainer = document.createElement('div');
             shapeIndicatorsContainer.id = 'shapeIndicators';
@@ -117,6 +155,11 @@
             directionIndicator.id = 'directionIndicator';
             document.body.appendChild(directionIndicator);
 
+            let spinModeIndicator = document.createElement('div');
+            spinModeIndicator.id = 'spinModeIndicator';
+            spinModeIndicator.textContent = 'Spin Mode: Forward';
+            document.body.appendChild(spinModeIndicator);
+
             function updateIndicators() {
                 let totalCount = cubeCount + coneCount + triangleCount;
 
@@ -131,7 +174,7 @@
                 totalSpawnedIndicator.textContent = `Total Spawned: ${totalSpawnedCount}`;
                 totalObjectsIndicator.textContent = `Total Objects: ${objects.length}`;
                 spawnModeIndicator.textContent = `Spawn Mode: ${spawnMode}`;
-                directionIndicator.textContent = `Spin Direction: ${spinDirection}`;
+                spinModeIndicator.textContent = `Spin Mode: ${spinDirection}`; 
             }
 
             let spinDirection = 'Forward';
@@ -159,6 +202,40 @@
             };
 
             window.addEventListener('resize', onWindowResize, false);
+
+            colorPicker.addEventListener('input', (event) => {
+                mainColor = parseInt(event.target.value.slice(1), 16);
+                mainMesh.material.color.set(mainColor);
+
+                if (affectColorToggle.checked) {
+                    objects.forEach(obj => {
+                        if (obj !== mainMesh) {
+
+                            if (!originalColors[obj.uuid]) {
+                                originalColors[obj.uuid] = obj.material.color.getHex();
+                            }
+                            obj.material.color.set(mainColor); 
+                        }
+                    });
+                }
+            });
+
+            affectColorToggle.addEventListener('change', (event) => {
+                affectAllObjects = event.target.checked; 
+                if (!affectAllObjects) {
+       
+                    objects.forEach(obj => {
+                        if (originalColors[obj.uuid]) {
+                            obj.material.color.set(originalColors[obj.uuid]);
+                        }
+                    });
+                } else {
+               
+                    objects.forEach(obj => {
+                        obj.material.color.set(mainColor);
+                    });
+                }
+            });
 
             document.addEventListener('mousedown', (event) => {
                 if (event.button === 0) {
@@ -209,9 +286,9 @@
             });
 
             document.addEventListener('keydown', function (event) {
-                if (event.key === 'ArrowUp' && speed < 1.3) {
+                if (event.key === 'ArrowUp' && speed < 4.9) {
                     speed += 0.1;
-                } else if (event.key === 'ArrowDown' && speed > 0.5) {
+                } else if (event.key === 'ArrowDown' && speed > 0.1) {
                     speed -= 0.1;
                 }
 
@@ -236,7 +313,7 @@
                 if (event.key === 'Enter') {
                     spinDirection = 'Forward';
                 } else if (event.key === 'Backspace') {
-                    spinDirection = 'Backward';
+                    spinDirection = 'Backward'; 
                 }
 
                 if (canChangeShape) {
@@ -258,7 +335,7 @@
                 if (geometry !== mainMesh.geometry) {
                     scene.remove(mainMesh);
                     mainMesh.geometry = geometry;
-                    mainMesh.material = grayMaterial;
+                    mainMesh.material = new THREE.MeshBasicMaterial({ color: mainColor });
                     scene.add(mainMesh);
 
                     if (previousType === 'BoxGeometry') {
@@ -280,7 +357,8 @@
             }
 
             function spawnObject() {
-                let geometry, material = grayMaterial;
+                let geometry;
+                let material;
 
                 switch (spawnMode) {
                     case 'Cube':
@@ -310,6 +388,9 @@
                         }
                         break;
                 }
+
+                const randomColor = Math.floor(Math.random() * 16777215); 
+                material = new THREE.MeshBasicMaterial({ color: randomColor });
 
                 let mesh = new THREE.Mesh(geometry, material);
                 mesh.position.x = (Math.random() - 0.5) * 10;
@@ -344,6 +425,9 @@
         }
     </script>
 </head>
+<body>
+</body>
+</html>
 <body>
 </body>
 </html>
