@@ -1,9 +1,9 @@
 import sys
 import os
 import subprocess
-from PyQt5.QtCore import QUrl
-from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QLabel, QMessageBox
-from PyQt5.QtWebEngineWidgets import QWebEngineView
+from PyQt6.QtCore import QUrl
+from PyQt6.QtWidgets import QApplication, QWidget, QVBoxLayout, QLabel, QMessageBox
+from PyQt6.QtWebEngineWidgets import QWebEngineView
 
 class LoadingScreen(QWidget):
     def __init__(self):
