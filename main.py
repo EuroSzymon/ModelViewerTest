@@ -1,86 +1,87 @@
 import sys
 import os
 import subprocess
-from PyQt6.QtCore import QUrl
-from PyQt6.QtWidgets import QApplication, QWidget, QVBoxLayout, QLabel, QMessageBox
+import time
+from PyQt6.QtCore import QUrl, Qt
+from PyQt6.QtWidgets import QApplication, QWidget, QVBoxLayout, QMessageBox, QDialog, QLabel, QProgressBar, QMenu
 from PyQt6.QtWebEngineWidgets import QWebEngineView
+from PyQt6.QtGui import QIcon
 
-class LoadingScreen(QWidget):
+class LoadingDialog(QDialog):
     def __init__(self):
         super().__init__()
-        self.init_ui()
-
-    def init_ui(self):
+        self.setWindowTitle("Loading...")
+        self.setFixedSize(300, 100)
+        self.setModal(True)
         layout = QVBoxLayout()
-        
+
         self.label = QLabel("Loading, please wait...")
         layout.addWidget(self.label)
-        
-        self.setLayout(layout)
-        self.setWindowTitle("Loading")
 
-        self.setFixedSize(200, 100)
+        self.progress_bar = QProgressBar()
+        self.progress_bar.setRange(0, 0)
+        layout.addWidget(self.progress_bar)
+
+        self.setLayout(layout)
+
+class CustomWebEngineView(QWebEngineView):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+
+    def contextMenuEvent(self, event):
+        menu = QMenu(self)
+        menu.addAction("Reload", self.reload)
+        menu.exec(event.globalPos())
 
 class ModelViewer(QWidget):
     def __init__(self):
         super().__init__()
-        self.loading_screen = LoadingScreen()
-        self.loading_screen.show()
+        self.setWindowTitle("Model Viewer Test")
+        
+        icon_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "viewer!.ico")
+        if os.path.exists(icon_path):
+            self.setWindowIcon(QIcon(icon_path))
+        else:
+            print("Icon file not found.")
 
         self.init_ui()
 
     def init_ui(self):
         layout = QVBoxLayout()
-        self.browser = QWebEngineView()
-
-        self.browser.loadStarted.connect(self.on_load_started)
-        self.browser.loadFinished.connect(self.on_load_finished)
+        self.browser = CustomWebEngineView()
+        self.resize(1500, 800)
+        self.loading_dialog = LoadingDialog()
+        self.loading_dialog.show()
 
         server_path = self.find_server_file()
         if server_path:
+            print(f"Starting server: {server_path}")
             subprocess.Popen(["python", server_path], shell=True)
-
-            current_dir = os.path.dirname(os.path.abspath(__file__))
-            index_html_path = os.path.join(current_dir, "templates", "index.html")
-            self.browser.setUrl(QUrl.fromLocalFile(index_html_path))
+            time.sleep(1)
+            self.browser.setUrl(QUrl("http://localhost:5000/"))
+        else:
+            QMessageBox.critical(self, "File Error", "Server file not found.")
 
         layout.addWidget(self.browser)
         self.setLayout(layout)
-
-        self.resize(1200, 800)
-
-    def on_load_started(self):
-        self.loading_screen.show()
-
-    def on_load_finished(self, success):
-        self.loading_screen.close()
-
-        if not success:
-            QMessageBox.critical(self, "Load Error", "Failed to load the page.")
+        
+        self.browser.loadFinished.connect(self.on_load_finished)
 
     def find_server_file(self):
         current_dir = os.path.dirname(os.path.abspath(__file__))
         for root, dirs, files in os.walk(current_dir):
             if "server.py" in files:
                 return os.path.join(root, "server.py")
+        return None
+
+    def on_load_finished(self, success):
+        self.loading_dialog.close()
 
 def main():
     app = QApplication(sys.argv)
-
-    def handle_exception(exctype, value, tb):
-        if issubclass(exctype, KeyboardInterrupt):
-            sys.exit()
-        else:
-            QMessageBox.critical(None, 'Critical Error', 'An unexpected error occurred!')
-            sys.exit(1)
-
-    sys.excepthook = handle_exception
-
     viewer = ModelViewer()
-    viewer.setWindowTitle("Model Viewer Test")
     viewer.show()
-
-    sys.exit(app.exec_())
+    sys.exit(app.exec())
 
 if __name__ == '__main__':
     main()
