@@ -1,6 +1,6 @@
-import * as THREE from 'https://threejs.org/build/three.module.js';
+  import * as THREE from 'https://threejs.org/build/three.module.js';
 
-if (typeof THREE !== 'undefined') {
+    if (typeof THREE !== 'undefined') {
     
     let isMouseDown = false;
     let mouseX = 0;
@@ -109,6 +109,8 @@ selectedObject = null;
     let cubeGeometry = new THREE.BoxGeometry();
     let coneGeometry = new THREE.ConeGeometry(1, 2, 32);
     let triangleGeometry = new THREE.ConeGeometry(1, 2, 3);
+    triangleGeometry.type = 'TriangleGeometry';
+
 
     let mainColor = 0x888888;  
     let mainMesh = new THREE.Mesh(cubeGeometry, new THREE.MeshBasicMaterial({ color: mainColor }));
@@ -230,6 +232,14 @@ if (keys['KeyD']) cameraDirection.x += 1;
 if (keys['Space']) cameraDirection.y += 1;
 if (keys['ShiftLeft']) cameraDirection.y -= 1;
 
+window.addEventListener('blur', () => {
+  keys = {};
+});
+
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) keys = {};
+});
+
 cameraDirection.normalize().multiplyScalar(cameraSpeed);
 camera.position.add(cameraDirection);
 
@@ -330,8 +340,14 @@ function updatePositionModeIndicator() {
 positionModeIndicator.textContent = `Spawn Position Mode: ${spawnAtCamera ? 'Camera' : 'Random'}`;
 }
 
-document.addEventListener('keydown', (event) => {
-keys[event.code] = true;
+window.addEventListener('keydown', onKeyDown, false);
+window.addEventListener('keyup', onKeyUp,   false);
+window.addEventListener('blur', () => keys = {}, false);
+let lastKeyEventTime = Date.now();
+
+function onKeyDown(event) {
+  lastKeyEventTime = Date.now();
+  keys[event.code] = true;
 
 if (event.key === '/') {
 spawnAtCamera = !spawnAtCamera;
@@ -388,15 +404,24 @@ if (event.key === '2') changeMainShape(coneGeometry);
 if (event.key === '3') changeMainShape(triangleGeometry);
 
 updateIndicators();
-});
+}
 
-document.addEventListener('keyup', (event) => {
-keys[event.code] = false;
-});
+function onKeyUp(event) {
+  lastKeyEventTime = Date.now();
+  keys[event.code] = false;
+}
 
-document.addEventListener('keyup', (event) => {
-keys[event.code] = false;
-});
+setInterval(() => {
+  const activeTag = document.activeElement.tagName;
+  const uiHasFocus = activeTag === 'INPUT'
+                   || activeTag === 'BUTTON'
+                   || activeTag === 'SELECT'
+                   || activeTag === 'TEXTAREA';
+  const anyKeyDown = Object.values(keys).some(v => v);
+  if (uiHasFocus && anyKeyDown && (Date.now() - lastKeyEventTime) > 1) {
+    keys = {};
+  }
+}, 1000);
 
 document.addEventListener('click', (event) => {
 let mouseX = (event.clientX / window.innerWidth) * 2 - 1;
@@ -426,23 +451,22 @@ if (selectedObjects.has(clickedObject)) {
             scene.add(mainMesh);
 
             if (previousType === 'BoxGeometry') {
-                cubeCount--;
+            cubeCount--;
             } else if (previousType === 'ConeGeometry') {
-                coneCount--;
-            } else if (previousType === 'ConeGeometry') {
-                triangleCount--;
-            }
-
+            coneCount--;
+            } else if (previousType === 'TriangleGeometry') {
+            triangleCount--;
+         }
             if (geometry.type === 'BoxGeometry') {
-                cubeCount++;
+            cubeCount++;
             } else if (geometry.type === 'ConeGeometry') {
-                coneCount++;
-            } else if (geometry.type === 'ConeGeometry') {
-                triangleCount++;
-            }
-        }
-    }
-                  
+            coneCount++;
+            } else if (geometry.type === 'TriangleGeometry') {
+            triangleCount++;
+         }
+     }
+ }
+          
 function hideShapeIndicators() {
 
 if (objects.length === 0) {
@@ -485,8 +509,11 @@ default:
     break;
 }
 
-const randomColor = Math.floor(Math.random() * 16777215); 
-material = new THREE.MeshBasicMaterial({ color: randomColor });
+    const randomColor = Math.floor(Math.random() * 16777215);
+   material = new THREE.MeshBasicMaterial({ color: randomColor });
+   material = new THREE.MeshBasicMaterial({
+      color: affectAllObjects ? mainColor : randomColor
+   });
 
 let mesh = new THREE.Mesh(geometry, material);
 mesh.position.x = (Math.random() - 0.5) * 10;
@@ -504,6 +531,8 @@ mesh.position.z = (Math.random() - 0.5) * 10;
 
 scene.add(mesh);
 objects.push(mesh);
+
+originalColors[mesh.uuid] = mesh.material.color.getHex();
 
 totalSpawnedCount++;
 sessionStorage.setItem('totalSpawned', totalSpawnedCount);
@@ -532,6 +561,88 @@ hideShapeIndicators();
 window.addEventListener('load', () => {
 updatePositionModeIndicator();
 });
+
+async function saveScene() {
+  if (!window.showSaveFilePicker) {
+    return;
+  }
+  const data = objects.map(m => ({
+    type:     m.geometry.type,
+    position: m.position.toArray(),
+    rotation: m.rotation.toArray(),
+    color:    m.material.color.getHexString()
+  }));
+  const jsonString = JSON.stringify(data, null, 2);
+
+  try {
+    const handle = await window.showSaveFilePicker({
+      suggestedName: 'scene.json',
+      types: [{
+        description: 'JSON Files',
+        accept: { 'application/json': ['.json'] },
+      }],
+    });
+    const writable = await handle.createWritable();
+    await writable.write(jsonString);
+    await writable.close();
+  } catch (e) {
+  }
+}
+
+function loadScene(file) {
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const arr = JSON.parse(reader.result);
+      objects.forEach(m => scene.remove(m));
+      objects = [];
+      cubeCount = coneCount = triangleCount = 0;
+      arr.forEach(o => {
+        let geo = o.type === 'BoxGeometry' ? cubeGeometry
+                : o.type === 'TriangleGeometry' ? triangleGeometry
+                : coneGeometry;
+        const mat = new THREE.MeshBasicMaterial({ color: parseInt(o.color, 16) });
+        const m   = new THREE.Mesh(geo, mat);
+        m.position.fromArray(o.position);
+        m.rotation.set(...o.rotation);
+        scene.add(m);
+        objects.push(m);
+        if (o.type === 'BoxGeometry') cubeCount++;
+        else if (o.type === 'TriangleGeometry') triangleCount++;
+        else coneCount++;
+      });
+      updateIndicators();
+    } catch (err) {
+      console.error('Load failed:', err);
+    }
+  };
+  reader.readAsText(file);
+}
+
+const saveBtn = document.createElement('button');
+saveBtn.textContent = 'Save Scene';
+saveBtn.className   = 'scene-btn';
+saveBtn.style.position = 'absolute';
+saveBtn.style.top      = '10px';
+saveBtn.style.right    = '10px';
+saveBtn.onclick = saveScene;
+document.body.appendChild(saveBtn);
+
+const loadInput = document.createElement('input');
+loadInput.type    = 'file';
+loadInput.accept  = '.json';
+loadInput.style.display = 'none';
+loadInput.onchange = e => { if (e.target.files[0]) loadScene(e.target.files[0]); };
+document.body.appendChild(loadInput);
+
+const loadBtn = document.createElement('button');
+loadBtn.textContent = 'Load Scene';
+loadBtn.className   = 'scene-btn';
+loadBtn.style.position = 'absolute';
+loadBtn.style.top      = '50px';
+loadBtn.style.right    = '10px';
+loadBtn.onclick        = () => loadInput.click();
+document.body.appendChild(loadBtn);
 
     animate();
 }
