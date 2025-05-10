@@ -59,6 +59,30 @@
         #increaseSpeed:hover, #decreaseSpeed:hover {
             background-color: lightgray;
         }
+
+        button.control {
+        background-color: #000;       
+        color: #fff;
+        border: none;                 
+        border-radius: 8px;           
+        padding: 8px 16px;            
+        font-size: 14px;
+        cursor: pointer;
+        transition: background 0.2s;
+}
+
+button.control:hover,
+button.control:focus {
+  background-color: #222;
+  outline: none;
+}
+
+@media only screen and (max-width: 768px) {
+  button.control {
+    font-size: 12px;
+    padding: 6px 12px;
+  }
+}
     </style>
     <title>Model Viewer Test</title>
 </head>
@@ -70,9 +94,15 @@
     <div id="colorPickerContainer">
         <input type="color" id="colorPicker" value="#888888">
     </div>
-    <button id="spinDirectionToggle" style="top: 50px;">Change Spin Direction</button>
-    <button id="increaseSpeed" style="top: 80px;">Increase Speed</button>
-    <button id="decreaseSpeed" style="top: 110px;">Decrease Speed</button>
+ <button id="spinDirectionToggle" class="control" style="top: 50px;">
+  Change Spin Direction
+</button>
+<button id="increaseSpeed" class="control" style="top: 85px;">
+  Increase Speed
+</button>
+<button id="decreaseSpeed" class="control" style="top: 120px;">
+  Decrease Speed
+</button>
 
     <script type="module">
         import * as THREE from 'https://threejs.org/build/three.module.js';
