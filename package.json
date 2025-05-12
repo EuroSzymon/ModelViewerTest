@@ -27,9 +27,8 @@
     },
     "linux": {
       "icon": "assets/viewer!.png",
-      "target": [
-        "AppImage"
-      ]
+      "target": "AppImage",
+      "category": "Graphics" 
     }
   },
   "devDependencies": {
