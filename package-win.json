@@ -24,11 +24,6 @@
       "target": [
         "portable"
       ]
-    },
-    "linux": {
-      "icon": "assets/viewer!.png",
-      "target": "AppImage",
-      "category": "Graphics" 
     }
   },
   "devDependencies": {
