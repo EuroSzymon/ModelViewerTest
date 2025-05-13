@@ -1,4 +1,98 @@
-  import * as THREE from 'https://threejs.org/build/three.module.js';
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <link rel="stylesheet"
+     href="https://fonts.googleapis.com/css?family=Inter">
+
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            font-family: 'Inter', sans-serif;
+        }
+
+        #speedIndicator, #totalObjectsIndicator, #spawnModeIndicator, #directionIndicator, #colorPickerContainer, #spinModeIndicator {
+            position: absolute;
+            top: 10px;
+            color: white;
+        }
+
+        #speedIndicator {
+            left: 10px;
+        }
+
+        #totalObjectsIndicator {
+            left: 1210px;
+        }
+
+        #spawnModeIndicator {
+            left: 370px; 
+        }
+
+        #directionIndicator {
+            left: 820px;
+        }
+
+        #spinModeIndicator {
+            left: 1040px; 
+        }
+
+        #colorPickerContainer {
+            left: 150px;
+        }
+
+        #positionModeIndicator {
+        position: absolute;
+        top: 10px;
+        left: 560px;
+        color: white;
+}
+
+        #shapeIndicators {
+            position: absolute;
+            left: 150px;
+            top: 60px;
+            color: white;
+            display: none;
+        }
+
+        .shapeIndicator {
+            margin-top: 10px;
+        }
+
+        #affectColorToggle {
+            margin-top: 5px;
+        }
+        .scene-btn {
+        font-family: 'Inter', sans-serif;
+        background-color: rgba(0, 0, 0, 0.4);
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+        color: #fff;
+        border: none;
+        border-radius: 12px;
+        padding: 8px 16px;
+        font-size: 14px;
+        font-weight: 500;
+        cursor: pointer;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+        transition: background-color 0.2s, transform 0.1s;
+        z-index: 1000;
+    }
+        .scene-btn:hover {
+        background-color: #222;
+        transform: translateY(-1px);
+    }
+        .scene-btn:active {
+        transform: translateY(0);
+    }
+    </style>
+    <title>Model Viewer Test</title>
+    <script type="module">
+    import * as THREE from 'https://threejs.org/build/three.module.js';
 
     if (typeof THREE !== 'undefined') {
     
@@ -563,58 +657,110 @@ updatePositionModeIndicator();
 });
 
 async function saveScene() {
-  if (!window.showSaveFilePicker) {
-    return;
-  }
-  const data = objects.map(m => ({
+  if (!window.showSaveFilePicker) return;
+
+  const allObjData = objects.map(m => ({
     type:     m.geometry.type,
     position: m.position.toArray(),
     rotation: m.rotation.toArray(),
     color:    m.material.color.getHexString()
   }));
-  const jsonString = JSON.stringify(data, null, 2);
 
+  const settings = {
+    speed,
+    spawnMode,
+    spawnAtCamera,
+    spinDirection,
+    background: scene.background
+      ? `#${scene.background.getHexString()}`
+      : '#000000',
+    textColor: getComputedStyle(speedIndicator).color
+  };
+
+  const payload = {
+    objects:  allObjData,
+    settings: settings
+  };
+
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
   try {
     const handle = await window.showSaveFilePicker({
       suggestedName: 'scene.json',
       types: [{
         description: 'JSON Files',
-        accept: { 'application/json': ['.json'] },
+        accept: { 'application/json': ['.json'] }
       }],
     });
     const writable = await handle.createWritable();
-    await writable.write(jsonString);
+    await writable.write(blob);
     await writable.close();
-  } catch (e) {
+  } catch (err) {
+    console.warn('Save cancelled or failed', err);
   }
 }
 
 function loadScene(file) {
   const reader = new FileReader();
   reader.onload = () => {
-    try {
-      const arr = JSON.parse(reader.result);
-      objects.forEach(m => scene.remove(m));
-      objects = [];
-      cubeCount = coneCount = triangleCount = 0;
-      arr.forEach(o => {
-        let geo = o.type === 'BoxGeometry' ? cubeGeometry
-                : o.type === 'TriangleGeometry' ? triangleGeometry
-                : coneGeometry;
-        const mat = new THREE.MeshBasicMaterial({ color: parseInt(o.color, 16) });
-        const m   = new THREE.Mesh(geo, mat);
-        m.position.fromArray(o.position);
-        m.rotation.set(...o.rotation);
-        scene.add(m);
-        objects.push(m);
-        if (o.type === 'BoxGeometry') cubeCount++;
-        else if (o.type === 'TriangleGeometry') triangleCount++;
-        else coneCount++;
-      });
-      updateIndicators();
-    } catch (err) {
-      console.error('Load failed:', err);
+    const { settings = {}, objects: arr = [] } = JSON.parse(reader.result);
+
+    objects.forEach(m => scene.remove(m));
+    objects = [];
+    cubeCount = coneCount = triangleCount = 0;
+
+    const doLoad = {
+      cube:       document.getElementById('loadCubes').checked,
+      cone:       document.getElementById('loadCones').checked,
+      triangle:   document.getElementById('loadTriangles').checked,
+      speed:      document.getElementById('loadSpeed').checked,
+      spawnMode:  document.getElementById('loadSpawnMode').checked,
+      spawnPos:   document.getElementById('loadSpawnPos').checked,
+      spinMode:   document.getElementById('loadSpinMode').checked,
+      background: document.getElementById('loadBackground').checked,
+      textColor:  document.getElementById('loadTextColor').checked,
+    };
+
+    arr.forEach(o => {
+      if (o.type === 'BoxGeometry'      && !doLoad.cube)     return;
+      if (o.type === 'ConeGeometry'     && !doLoad.cone)     return;
+      if (o.type === 'TriangleGeometry' && !doLoad.triangle) return;
+
+      const geo = o.type === 'BoxGeometry'
+                ? cubeGeometry
+                : o.type === 'ConeGeometry'
+                  ? coneGeometry
+                  : triangleGeometry;
+      const mat = new THREE.MeshBasicMaterial({ color: parseInt(o.color,16) });
+      const mesh = new THREE.Mesh(geo, mat);
+      mesh.position.fromArray(o.position);
+      mesh.rotation.set(...o.rotation);
+
+      scene.add(mesh);
+      objects.push(mesh);
+      if (o.type === 'BoxGeometry')       cubeCount++;
+      else if (o.type === 'ConeGeometry') coneCount++;
+      else if (o.type === 'TriangleGeometry') triangleCount++;
+    });
+
+    if (doLoad.speed     && typeof settings.speed    === 'number') speed        = settings.speed;
+    if (doLoad.spawnMode && settings.spawnMode)                     spawnMode     = settings.spawnMode;
+    if (doLoad.spawnPos  && typeof settings.spawnAtCamera === 'boolean') {
+      spawnAtCamera = settings.spawnAtCamera;
+      updatePositionModeIndicator();
     }
+    if (doLoad.spinMode && settings.spinDirection) spinDirection = settings.spinDirection;
+    if (doLoad.background && settings.background) {
+      scene.background = new THREE.Color(settings.background);
+      document.getElementById('bgColorPicker').value = settings.background;
+    }
+    if (doLoad.textColor && settings.textColor) {
+      document.querySelectorAll(
+        '#speedIndicator, #totalObjectsIndicator, #spawnModeIndicator, ' +
+        '#directionIndicator, #spinModeIndicator, #positionModeIndicator'
+      ).forEach(d => d.style.color = settings.textColor);
+    }
+
+    updateIndicators();
   };
   reader.readAsText(file);
 }
@@ -644,5 +790,110 @@ loadBtn.style.right    = '10px';
 loadBtn.onclick        = () => loadInput.click();
 document.body.appendChild(loadBtn);
 
+const settingsBtn = document.createElement('button');
+settingsBtn.textContent = 'Settings';
+settingsBtn.className = 'scene-btn';
+settingsBtn.style.position = 'absolute';
+settingsBtn.style.top      = '90px';
+settingsBtn.style.right    = '10px';
+document.body.appendChild(settingsBtn);
+
+const panel = document.createElement('div');
+panel.id = 'settingsPanel';
+Object.assign(panel.style, {
+  display: 'none',
+  position: 'absolute',
+  top:     '130px',
+  right:   '10px',
+  width:   '260px',
+  padding: '12px',
+  background: 'rgba(0,0,0,0.8)',
+  color:   '#fff',
+  borderRadius: '8px',
+  fontSize: '13px',
+  zIndex: 1000
+});
+document.body.appendChild(panel);
+
+
+const affectLabel = document.querySelector('label[for="affectColorToggle"]');
+if (affectLabel) affectLabel.id = 'affectAllLabel';
+
+
+panel.innerHTML += `
+  <div style="margin-bottom:12px">
+    <label style="display:block; margin-bottom:6px">
+      Background Color:
+      <input type="color" id="bgColorPicker" value="#000000"
+             style="margin-left:6px; vertical-align:middle">
+    </label>
+    <label style="display:block; margin-bottom:6px">
+      Text Color:
+      <input type="color" id="textColorPicker" value="#ffffff"
+             style="margin-left:6px; vertical-align:middle">
+    </label>
+  </div>
+
+<div style="margin-top:12px; border-top:1px solid #555; padding-top:10px">
+    <strong>Load Scene Options</strong>
+    <div style="margin:6px 0 0 0; color:#ddd">
+      <label><input type="checkbox" id="loadCubes" checked> Load Cubes</label><br>
+      <label><input type="checkbox" id="loadCones" checked> Load Cones</label><br>
+      <label><input type="checkbox" id="loadTriangles" checked> Load Triangles</label><br>
+      <label><input type="checkbox" id="loadSpeed" checked> Load Speed</label><br>
+      <label><input type="checkbox" id="loadSpawnMode" checked> Load Spawn Mode</label><br>
+      <label><input type="checkbox" id="loadSpawnPos" checked> Load Spawn Position Mode</label><br>
+      <label><input type="checkbox" id="loadSpinMode" checked> Load Spin Mode</label><br>
+      <label><input type="checkbox" id="loadBackground" checked> Load Background Color</label><br>
+      <label><input type="checkbox" id="loadTextColor" checked> Load Text Color</label>
+    </div>
+  </div>
+
+  <div style="margin-top:12px;">
+    <strong>Keybindings</strong>
+    <ul style="padding-left:18px; margin:6px 0; color:#ddd">
+      <li><code>1</code>: Main → Cube</li>
+      <li><code>2</code>: Main → Cone</li>
+      <li><code>3</code>: Main → Triangle</li>
+      <li><code>W</code>: Move camera forward</li>
+      <li><code>S</code>: Move camera backward</li>
+      <li><code>A</code>: Move camera left</li>
+      <li><code>D</code>: Move camera right</li>
+      <li><code>Space</code>: Fly up</li>
+      <li><code>Shift</code>: Fly down</li>
+      <li><code>.</code>: Cycle spawn mode ▶</li>
+      <li><code>,</code>: Cycle spawn mode ◀</li>
+      <li><code>/</code>: Toggle spawn position mode</li>
+      <li><code>M</code>: Next camera position</li>
+      <li><code>N</code>: Previous camera position</li>
+      <li><code>↑</code>: Increase simulation speed</li>
+      <li><code>↓</code>: Decrease simulation speed</li>
+      <li><code>Enter</code>: Spin mode ▶</li>
+      <li><code>Backspace</code>: Spin mode ◀</li>
+    </ul>
+  </div>
+`;
+
+document.getElementById('bgColorPicker')
+  .addEventListener('input', e => scene.background = new THREE.Color(e.target.value));
+
+document.getElementById('textColorPicker')
+  .addEventListener('input', e => {
+    document.querySelectorAll(
+      '#speedIndicator, #totalObjectsIndicator, #spawnModeIndicator, ' +
+      '#directionIndicator, #spinModeIndicator, #positionModeIndicator'
+    ).forEach(d => d.style.color = e.target.value);
+    const al = document.getElementById('affectAllLabel');
+    if (al) al.style.color = e.target.value;
+  });
+
+settingsBtn.addEventListener('click', ()=>{
+  panel.style.display = panel.style.display==='none' ? 'block' : 'none';
+});
     animate();
 }
+</script>
+</head>
+<body>
+</body>
+</html>
