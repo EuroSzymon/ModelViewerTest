@@ -1,4 +1,98 @@
-import * as THREE from 'https://threejs.org/build/three.module.js';
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <link rel="stylesheet"
+     href="https://fonts.googleapis.com/css?family=Inter">
+
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            font-family: 'Inter', sans-serif;
+        }
+
+        #speedIndicator, #totalObjectsIndicator, #spawnModeIndicator, #directionIndicator, #colorPickerContainer, #spinModeIndicator {
+            position: absolute;
+            top: 10px;
+            color: white;
+        }
+
+        #speedIndicator {
+            left: 10px;
+        }
+
+        #totalObjectsIndicator {
+            left: 1210px;
+        }
+
+        #spawnModeIndicator {
+            left: 370px; 
+        }
+
+        #directionIndicator {
+            left: 820px;
+        }
+
+        #spinModeIndicator {
+            left: 1040px; 
+        }
+
+        #colorPickerContainer {
+            left: 150px;
+        }
+
+        #positionModeIndicator {
+        position: absolute;
+        top: 10px;
+        left: 560px;
+        color: white;
+}
+
+        #shapeIndicators {
+            position: absolute;
+            left: 150px;
+            top: 60px;
+            color: white;
+            display: none;
+        }
+
+        .shapeIndicator {
+            margin-top: 10px;
+        }
+
+        #affectColorToggle {
+            margin-top: 5px;
+        }
+        .scene-btn {
+        font-family: 'Inter', sans-serif;
+        background-color: rgba(0, 0, 0, 0.4);
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+        color: #fff;
+        border: none;
+        border-radius: 12px;
+        padding: 8px 16px;
+        font-size: 14px;
+        font-weight: 500;
+        cursor: pointer;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+        transition: background-color 0.2s, transform 0.1s;
+        z-index: 1000;
+    }
+        .scene-btn:hover {
+        background-color: #222;
+        transform: translateY(-1px);
+    }
+        .scene-btn:active {
+        transform: translateY(0);
+    }
+    </style>
+    <title>Model Viewer Test</title>
+    <script type="module">
+    import * as THREE from 'https://threejs.org/build/three.module.js';
 
     if (typeof THREE !== 'undefined') {
     
@@ -906,3 +1000,8 @@ scene.add(ground);
 
     animate();
 }
+</script>
+</head>
+<body>
+</body>
+</html>
