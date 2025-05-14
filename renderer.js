@@ -1,97 +1,3 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-    <link rel="stylesheet"
-     href="https://fonts.googleapis.com/css?family=Inter">
-
-    <style>
-        body {
-            margin: 0;
-            overflow: hidden;
-            font-family: 'Inter', sans-serif;
-        }
-
-        #speedIndicator, #totalObjectsIndicator, #spawnModeIndicator, #directionIndicator, #colorPickerContainer, #spinModeIndicator {
-            position: absolute;
-            top: 10px;
-            color: white;
-        }
-
-        #speedIndicator {
-            left: 10px;
-        }
-
-        #totalObjectsIndicator {
-            left: 1210px;
-        }
-
-        #spawnModeIndicator {
-            left: 370px; 
-        }
-
-        #directionIndicator {
-            left: 820px;
-        }
-
-        #spinModeIndicator {
-            left: 1040px; 
-        }
-
-        #colorPickerContainer {
-            left: 150px;
-        }
-
-        #positionModeIndicator {
-        position: absolute;
-        top: 10px;
-        left: 560px;
-        color: white;
-}
-
-        #shapeIndicators {
-            position: absolute;
-            left: 150px;
-            top: 60px;
-            color: white;
-            display: none;
-        }
-
-        .shapeIndicator {
-            margin-top: 10px;
-        }
-
-        #affectColorToggle {
-            margin-top: 5px;
-        }
-        .scene-btn {
-        font-family: 'Inter', sans-serif;
-        background-color: rgba(0, 0, 0, 0.4);
-        backdrop-filter: blur(8px);
-        -webkit-backdrop-filter: blur(8px);
-        color: #fff;
-        border: none;
-        border-radius: 12px;
-        padding: 8px 16px;
-        font-size: 14px;
-        font-weight: 500;
-        cursor: pointer;
-        box-shadow: 0 2px 6px rgba(0,0,0,0.4);
-        transition: background-color 0.2s, transform 0.1s;
-        z-index: 1000;
-    }
-        .scene-btn:hover {
-        background-color: #222;
-        transform: translateY(-1px);
-    }
-        .scene-btn:active {
-        transform: translateY(0);
-    }
-    </style>
-    <title>Model Viewer Test</title>
-    <script type="module">
     import * as THREE from 'https://threejs.org/build/three.module.js';
 
     if (typeof THREE !== 'undefined') {
@@ -109,7 +15,23 @@
     const renderer = new THREE.WebGLRenderer(); 
     renderer.setSize(window.innerWidth, window.innerHeight);
     document.body.appendChild(renderer.domElement);
-    
+    const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+    dirLight.position.set(5, 10, 7.5);
+    dirLight.castShadow = true;
+    scene.add(dirLight);
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type    = THREE.PCFSoftShadowMap;
+    const d = 100;
+    dirLight.shadow.mapSize.set(4096, 4096);
+    dirLight.shadow.camera.left   = -d;
+    dirLight.shadow.camera.right  =  d;
+    dirLight.shadow.camera.top    =  d;
+    dirLight.shadow.camera.bottom = -d;
+    dirLight.shadow.camera.near = 0.1;
+    dirLight.shadow.camera.far  = 500;
+    dirLight.shadow.bias = -0.0005;
+    dirLight.shadow.camera.updateProjectionMatrix();
+
     camera.position.z = 5;
 
     let isMoving = false;
@@ -198,6 +120,25 @@ isMoving = false;
 selectedObject = null;
 }
 });
+
+function createDualMaterialMesh(geometry, colorHex) {
+  const advancedMat = new THREE.MeshStandardMaterial({
+    color: colorHex,
+    metalness: 0.3,
+    roughness: 0.6
+  });
+  const basicMat = new THREE.MeshBasicMaterial({ color: colorHex });
+
+  const mesh = new THREE.Mesh(geometry, advancedMat);
+  mesh.userData.advancedMat = advancedMat;
+  mesh.userData.basicMat    = basicMat;
+
+  mesh.castShadow    = true;
+  mesh.receiveShadow = true;
+
+  return mesh;
+}
+
     camera.position.z = 5;
 
     let cubeGeometry = new THREE.BoxGeometry();
@@ -205,9 +146,13 @@ selectedObject = null;
     let triangleGeometry = new THREE.ConeGeometry(1, 2, 3);
     triangleGeometry.type = 'TriangleGeometry';
 
-
     let mainColor = 0x888888;  
-    let mainMesh = new THREE.Mesh(cubeGeometry, new THREE.MeshBasicMaterial({ color: mainColor }));
+    let mainMesh = createDualMaterialMesh(cubeGeometry, mainColor);
+    mainMesh.castShadow    = true;
+    mainMesh.receiveShadow = true;
+
+    mainMesh.castShadow    = true;
+    mainMesh.receiveShadow = true;
 
     let speed = 1.0;
     let objects = [mainMesh];
@@ -221,6 +166,7 @@ selectedObject = null;
     let affectAllObjects = false;
     let originalColors = {};
     scene.add(mainMesh)
+
 
     let speedIndicator = document.createElement('div');
     speedIndicator.id = 'speedIndicator';
@@ -294,7 +240,6 @@ selectedObject = null;
     positionModeIndicator.id = 'positionModeIndicator';
     document.body.appendChild(positionModeIndicator);
 
-
     function updateIndicators() {
         let totalCount = cubeCount + coneCount + triangleCount;
 
@@ -338,10 +283,10 @@ cameraDirection.normalize().multiplyScalar(cameraSpeed);
 camera.position.add(cameraDirection);
 
 if (isMouseDown) {
-camera.rotation.y += (mouseX - previousMouseX) * sensitivity;
-camera.rotation.x += (mouseY - previousMouseY) * sensitivity;
-previousMouseX = mouseX;
-previousMouseY = mouseY;
+  camera.rotation.y += (mouseX - previousMousePosition.x) * sensitivity;
+  camera.rotation.x += (mouseY - previousMousePosition.y) * sensitivity;
+  previousMousePosition.x = mouseX;
+  previousMousePosition.y = mouseY;
 }
 objects.forEach(obj => {
 obj.frustumCulled = true;
@@ -412,17 +357,20 @@ selectedObject = null;
         }
     });
 
-    document.addEventListener('mousemove', (event) => {
-if (isMoving && selectedObject) {
-const deltaX = event.clientX - previousMousePosition.x;
-const deltaY = event.clientY - previousMousePosition.y;
+document.addEventListener('mousemove', event => {
+  if (isMoving && selectedObject) {
+    const deltaX = event.clientX - previousMousePosition.x;
+    const deltaY = event.clientY - previousMousePosition.y;
+    previousMousePosition.x = event.clientX;
+    previousMousePosition.y = event.clientY;
 
-previousMousePosition.x = event.clientX;
-previousMousePosition.y = event.clientY;
-
-selectedObject.position.x += deltaX * 0.01;
-selectedObject.position.y -= deltaY * 0.01;
-}
+    if (event.ctrlKey) {
+      selectedObject.position.z += deltaY * 0.01;
+    } else {
+      selectedObject.position.x += deltaX * 0.01;
+      selectedObject.position.y -= deltaY * 0.01;
+    }
+  }
 });
 
 updateDirectionIndicator();
@@ -541,7 +489,7 @@ if (selectedObjects.has(clickedObject)) {
         if (geometry !== mainMesh.geometry) {
             scene.remove(mainMesh);
             mainMesh.geometry = geometry;
-            mainMesh.material = new THREE.MeshBasicMaterial({ color: mainColor });
+            mainMesh.material = new THREE.MeshStandardMaterial({ color: mainColor, metalness: 0.5, roughness: 0.5 })
             scene.add(mainMesh);
 
             if (previousType === 'BoxGeometry') {
@@ -574,6 +522,7 @@ function spawnObject() {
 let geometry;
 let material;
 
+
 switch (spawnMode) {
 case 'Cube':
     geometry = cubeGeometry;
@@ -604,12 +553,17 @@ default:
 }
 
     const randomColor = Math.floor(Math.random() * 16777215);
-   material = new THREE.MeshBasicMaterial({ color: randomColor });
+   new THREE.MeshStandardMaterial({ color: mainColor, flatShading: false })
    material = new THREE.MeshBasicMaterial({
       color: affectAllObjects ? mainColor : randomColor
    });
 
-let mesh = new THREE.Mesh(geometry, material);
+let mesh = createDualMaterialMesh(
+    geometry,
+    affectAllObjects ? mainColor : randomColor
+ );
+mesh.castShadow    = true;
+mesh.receiveShadow = true;
 mesh.position.x = (Math.random() - 0.5) * 10;
 mesh.position.y = (Math.random() - 0.5) * 10;
 mesh.position.z = (Math.random() - 0.5) * 10;
@@ -625,6 +579,7 @@ mesh.position.z = (Math.random() - 0.5) * 10;
 
 scene.add(mesh);
 objects.push(mesh);
+
 
 originalColors[mesh.uuid] = mesh.material.color.getHex();
 
@@ -659,13 +614,7 @@ updatePositionModeIndicator();
 async function saveScene() {
   if (!window.showSaveFilePicker) return;
 
-  const allObjData = objects.map(m => ({
-    type:     m.geometry.type,
-    position: m.position.toArray(),
-    rotation: m.rotation.toArray(),
-    color:    m.material.color.getHexString()
-  }));
-
+  // Capture global settings
   const settings = {
     speed,
     spawnMode,
@@ -674,22 +623,42 @@ async function saveScene() {
     background: scene.background
       ? `#${scene.background.getHexString()}`
       : '#000000',
-    textColor: getComputedStyle(speedIndicator).color
+    textColor: getComputedStyle(speedIndicator).color,
+    shadowsEnabled: document.getElementById('toggleShadows').checked
   };
 
-  const payload = {
-    objects:  allObjData,
-    settings: settings
-  };
+  const allObjData = objects.map(m => {
+    const geomType = m.geometry.type;
+    const pos = m.position.toArray();
+    const rot = m.rotation.toArray();
 
+    const adv = m.userData.advancedMat;
+    const bas = m.userData.basicMat;
+
+    return {
+      type: geomType,
+      position: pos,
+      rotation: rot,
+      castShadow:    m.castShadow,
+      receiveShadow: m.receiveShadow,
+      advancedMat: {
+        color:     `#${adv.color.getHexString()}`,
+        metalness: adv.metalness,
+        roughness: adv.roughness
+      },
+      basicMat: {
+        color: `#${bas.color.getHexString()}`
+      }
+    };
+  });
+
+  const payload = { settings, objects: allObjData };
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+
   try {
     const handle = await window.showSaveFilePicker({
       suggestedName: 'scene.json',
-      types: [{
-        description: 'JSON Files',
-        accept: { 'application/json': ['.json'] }
-      }],
+      types: [{ description: 'JSON Files', accept: { 'application/json': ['.json'] } }],
     });
     const writable = await handle.createWritable();
     await writable.write(blob);
@@ -701,6 +670,7 @@ async function saveScene() {
 
 function loadScene(file) {
   const reader = new FileReader();
+
   reader.onload = () => {
     const { settings = {}, objects: arr = [] } = JSON.parse(reader.result);
 
@@ -708,60 +678,72 @@ function loadScene(file) {
     objects = [];
     cubeCount = coneCount = triangleCount = 0;
 
-    const doLoad = {
-      cube:       document.getElementById('loadCubes').checked,
-      cone:       document.getElementById('loadCones').checked,
-      triangle:   document.getElementById('loadTriangles').checked,
-      speed:      document.getElementById('loadSpeed').checked,
-      spawnMode:  document.getElementById('loadSpawnMode').checked,
-      spawnPos:   document.getElementById('loadSpawnPos').checked,
-      spinMode:   document.getElementById('loadSpinMode').checked,
-      background: document.getElementById('loadBackground').checked,
-      textColor:  document.getElementById('loadTextColor').checked,
-    };
-
-    arr.forEach(o => {
-      if (o.type === 'BoxGeometry'      && !doLoad.cube)     return;
-      if (o.type === 'ConeGeometry'     && !doLoad.cone)     return;
-      if (o.type === 'TriangleGeometry' && !doLoad.triangle) return;
-
-      const geo = o.type === 'BoxGeometry'
-                ? cubeGeometry
-                : o.type === 'ConeGeometry'
-                  ? coneGeometry
-                  : triangleGeometry;
-      const mat = new THREE.MeshBasicMaterial({ color: parseInt(o.color,16) });
-      const mesh = new THREE.Mesh(geo, mat);
-      mesh.position.fromArray(o.position);
-      mesh.rotation.set(...o.rotation);
-
-      scene.add(mesh);
-      objects.push(mesh);
-      if (o.type === 'BoxGeometry')       cubeCount++;
-      else if (o.type === 'ConeGeometry') coneCount++;
-      else if (o.type === 'TriangleGeometry') triangleCount++;
-    });
-
-    if (doLoad.speed     && typeof settings.speed    === 'number') speed        = settings.speed;
-    if (doLoad.spawnMode && settings.spawnMode)                     spawnMode     = settings.spawnMode;
-    if (doLoad.spawnPos  && typeof settings.spawnAtCamera === 'boolean') {
+    if (settings.speed         !== undefined) speed       = settings.speed;
+    if (settings.spawnMode     !== undefined) spawnMode   = settings.spawnMode;
+    if (settings.spawnAtCamera !== undefined) {
       spawnAtCamera = settings.spawnAtCamera;
       updatePositionModeIndicator();
     }
-    if (doLoad.spinMode && settings.spinDirection) spinDirection = settings.spinDirection;
-    if (doLoad.background && settings.background) {
+    if (settings.spinDirection !== undefined) spinDirection = settings.spinDirection;
+    if (settings.background    !== undefined) {
       scene.background = new THREE.Color(settings.background);
       document.getElementById('bgColorPicker').value = settings.background;
     }
-    if (doLoad.textColor && settings.textColor) {
+    if (settings.textColor     !== undefined) {
+      document.getElementById('textColorPicker').value = settings.textColor;
       document.querySelectorAll(
-        '#speedIndicator, #totalObjectsIndicator, #spawnModeIndicator, ' +
-        '#directionIndicator, #spinModeIndicator, #positionModeIndicator'
+        '#speedIndicator, #totalObjectsIndicator, #spawnModeIndicator,' +
+        ' #directionIndicator, #spinModeIndicator, #positionModeIndicator'
       ).forEach(d => d.style.color = settings.textColor);
     }
 
+    const affectLabel = document.getElementById('affectAllLabel');
+    if (affectLabel) affectLabel.style.color = settings.textColor;
+
+    if (settings.shadowsEnabled !== undefined) {
+      toggleShadows.checked         = settings.shadowsEnabled;
+      dirLight.visible              = settings.shadowsEnabled;
+      renderer.shadowMap.enabled    = settings.shadowsEnabled;
+    }
+
+    arr.forEach(o => {
+      let geom;
+      if      (o.type === 'BoxGeometry')      geom = cubeGeometry;
+      else if (o.type === 'ConeGeometry')     geom = coneGeometry;
+      else if (o.type === 'TriangleGeometry') geom = triangleGeometry;
+      else                                     geom = cubeGeometry;
+
+      const mesh = createDualMaterialMesh(geom, 0xffffff);
+
+      const adv = mesh.userData.advancedMat;
+      adv.color.set(o.advancedMat.color);
+      adv.metalness = o.advancedMat.metalness;
+      adv.roughness = o.advancedMat.roughness;
+      
+      const bas = mesh.userData.basicMat;
+      bas.color.set(o.basicMat.color);
+
+      mesh.position.fromArray(o.position);
+      mesh.rotation.set(...o.rotation);
+
+      mesh.castShadow    = !!o.castShadow;
+      mesh.receiveShadow = !!o.receiveShadow;
+
+      mesh.material = toggleShadows.checked
+        ? mesh.userData.advancedMat
+        : mesh.userData.basicMat;
+
+      scene.add(mesh);
+      objects.push(mesh);
+
+      if      (o.type === 'BoxGeometry')      cubeCount++;
+      else if (o.type === 'ConeGeometry')     coneCount++;
+      else if (o.type === 'TriangleGeometry') triangleCount++;
+    });
+
     updateIndicators();
   };
+
   reader.readAsText(file);
 }
 
@@ -822,6 +804,7 @@ if (affectLabel) affectLabel.id = 'affectAllLabel';
 
 panel.innerHTML += `
   <div style="margin-bottom:12px">
+    <strong>Graphics Options</strong>
     <label style="display:block; margin-bottom:6px">
       Background Color:
       <input type="color" id="bgColorPicker" value="#000000"
@@ -833,6 +816,11 @@ panel.innerHTML += `
              style="margin-left:6px; vertical-align:middle">
     </label>
   </div>
+  <label style="display:block; margin-bottom:6px">
+  <input type="checkbox" id="toggleShadows" checked style="margin-left:6px; vertical-align:middle">
+  Render Shadows
+</label>
+
 
 <div style="margin-top:12px; border-top:1px solid #555; padding-top:10px">
     <strong>Load Scene Options</strong>
@@ -859,6 +847,7 @@ panel.innerHTML += `
       <li><code>S</code>: Move camera backward</li>
       <li><code>A</code>: Move camera left</li>
       <li><code>D</code>: Move camera right</li>
+      <li><code>Ctrl</code>: Zoom in/out object</li>
       <li><code>Space</code>: Fly up</li>
       <li><code>Shift</code>: Fly down</li>
       <li><code>.</code>: Cycle spawn mode ▶</li>
@@ -873,6 +862,18 @@ panel.innerHTML += `
     </ul>
   </div>
 `;
+toggleShadows.addEventListener('change', e => {
+  const useShadows = e.target.checked;
+
+  dirLight.visible = useShadows;
+  renderer.shadowMap.enabled = useShadows;
+
+  objects.forEach(obj => {
+    obj.material = useShadows
+      ? obj.userData.advancedMat
+      : obj.userData.basicMat;
+  });
+});
 
 document.getElementById('bgColorPicker')
   .addEventListener('input', e => scene.background = new THREE.Color(e.target.value));
@@ -890,10 +891,18 @@ document.getElementById('textColorPicker')
 settingsBtn.addEventListener('click', ()=>{
   panel.style.display = panel.style.display==='none' ? 'block' : 'none';
 });
+
+const groundGeo = new THREE.PlaneGeometry(200, 200);
+const groundMat = new THREE.ShadowMaterial({ opacity: 0.5 });
+
+const ground = new THREE.Mesh(groundGeo, groundMat);
+ground.rotation.x    = - Math.PI / 2;
+ground.position.y    = -5;
+
+ground.receiveShadow = true;
+ground.castShadow    = false;
+
+scene.add(ground);
+
     animate();
 }
-</script>
-</head>
-<body>
-</body>
-</html>
