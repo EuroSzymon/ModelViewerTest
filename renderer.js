@@ -1,4 +1,4 @@
-    import * as THREE from 'https://threejs.org/build/three.module.js';
+        import * as THREE from 'https://threejs.org/build/three.module.js';
 
     if (typeof THREE !== 'undefined') {
     
@@ -562,6 +562,10 @@ let mesh = createDualMaterialMesh(
     geometry,
     affectAllObjects ? mainColor : randomColor
  );
+ const shadowsOn = document.getElementById('toggleShadows').checked;
+ mesh.material = shadowsOn
+     ? mesh.userData.advancedMat
+     : mesh.userData.basicMat;
 mesh.castShadow    = true;
 mesh.receiveShadow = true;
 mesh.position.x = (Math.random() - 0.5) * 10;
