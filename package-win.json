@@ -19,15 +19,16 @@
       "assets/**/*",
       "node_modules/**/*"
     ],
-    "linux": {
-      "icon": "assets/viewer!.png",
-      "target": "AppImage",
-      "category": "Graphics" 
+    "win": {
+      "icon": "assets/viewer!.ico",
+      "target": [
+        "portable"
+      ]
     }
   },
   "devDependencies": {
-    "electron": "^36.2.0",
-    "electron-builder": "^24.0.0",
+    "electron": "36.2.0",
+    "electron-builder": "^26.0.12",
     "glob": "^11.0.2"
   }
 }
