@@ -1,4 +1,4 @@
-        import * as THREE from 'https://threejs.org/build/three.module.js';
+    import * as THREE from 'https://threejs.org/build/three.module.js';
 
     if (typeof THREE !== 'undefined') {
     
@@ -105,14 +105,16 @@ if (intersects.length > 0) {
 }
 });
 
-window.addEventListener('wheel', (event) => {
-    const zoomSpeed = 0.5;
-    if (event.deltaY > 0) {
-        camera.position.z += zoomSpeed; 
-    } else {
-        camera.position.z -= zoomSpeed;
-    }
+window.addEventListener('wheel', event => {
+  const zoomSpeed = 0.5;
+
+  const dir = new THREE.Vector3();
+  camera.getWorldDirection(dir);
+  const sign = event.deltaY > 0 ?  1 : -1;
+
+  camera.position.addScaledVector(dir, zoomSpeed * sign);
 });
+
 
 document.addEventListener('mouseup', (event) => {
 if (event.button === 0) {
@@ -259,17 +261,30 @@ function createDualMaterialMesh(geometry, colorHex) {
 
     let spinDirection = 'Forward';
 
-    function animate() {
-requestAnimationFrame(animate);
+function animate() {
+  requestAnimationFrame(animate);
 
+  const UP = new THREE.Vector3(0,1,0);
+  const forward = new THREE.Vector3();
+  camera.getWorldDirection(forward);
+  forward.y = 0;
+  forward.normalize();
 
-const cameraDirection = new THREE.Vector3();
-if (keys['KeyW']) cameraDirection.z -= 1; 
-if (keys['KeyS']) cameraDirection.z += 1; 
-if (keys['KeyA']) cameraDirection.x -= 1; 
-if (keys['KeyD']) cameraDirection.x += 1;
-if (keys['Space']) cameraDirection.y += 1;
-if (keys['ShiftLeft']) cameraDirection.y -= 1;
+  const right = new THREE.Vector3();
+  right.crossVectors(forward, UP).normalize();
+
+  const move = new THREE.Vector3();
+  if (keys['KeyW'])      move.add(forward);
+  if (keys['KeyS'])      move.sub(forward);
+  if (keys['KeyD'])      move.add(right);
+  if (keys['KeyA'])      move.sub(right);
+  if (keys['Space'])     move.y += 1;
+  if (keys['ShiftLeft']) move.y -= 1;
+
+  if (move.lengthSq() > 0) {
+    move.normalize().multiplyScalar(cameraSpeed);
+    camera.position.add(move);
+  }
 
 window.addEventListener('blur', () => {
   keys = {};
@@ -364,14 +379,25 @@ document.addEventListener('mousemove', event => {
     previousMousePosition.x = event.clientX;
     previousMousePosition.y = event.clientY;
 
+    const cameraDir = new THREE.Vector3();
+    camera.getWorldDirection(cameraDir);
+    const cameraUp  = camera.up.clone().normalize();
+    const cameraRight = new THREE.Vector3()
+      .crossVectors(cameraDir, cameraUp)
+      .normalize();
+
+    const movement = new THREE.Vector3();
+    movement.addScaledVector(cameraRight,  deltaX * 0.01);
+    movement.addScaledVector(cameraUp,    -deltaY * 0.01);
+
     if (event.ctrlKey) {
-      selectedObject.position.z += deltaY * 0.01;
-    } else {
-      selectedObject.position.x += deltaX * 0.01;
-      selectedObject.position.y -= deltaY * 0.01;
+      movement.copy(cameraDir).multiplyScalar(deltaY * 0.01);
     }
+
+    selectedObject.position.add(movement);
   }
 });
+
 
 updateDirectionIndicator();
 
