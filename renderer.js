@@ -618,7 +618,6 @@ updatePositionModeIndicator();
 async function saveScene() {
   if (!window.showSaveFilePicker) return;
 
-  // Capture global settings
   const settings = {
     speed,
     spawnMode,
