@@ -89,6 +89,7 @@
         .scene-btn:active {
         transform: translateY(0);
     }
+    
     </style>
     <title>Model Viewer Test</title>
     <script type="module">
@@ -151,25 +152,6 @@ function updateCamera() {
     camera.position.copy(cameraPositions[currentCameraIndex].position);
     camera.rotation.copy(cameraPositions[currentCameraIndex].rotation);
     updateDirectionIndicator();
-}
-
-function updateDirectionIndicator() {
-    const currentRotation = camera.rotation;
-    let direction;
-
-    const angle = currentRotation.y;
-
-    if (angle < -Math.PI * 0.75 || angle > Math.PI * 0.75) {
-        direction = "Backward";
-    } else if (angle < -Math.PI * 0.25) {
-        direction = "Left";
-    } else if (angle < Math.PI * 0.25) {
-        direction = "Forward";
-    } else {
-        direction = "Right";
-    }
-
-    directionIndicator.innerText = `Camera Direction: ${direction}`;
 }
 
 window.addEventListener('resize', () => {
@@ -336,22 +318,64 @@ function createDualMaterialMesh(geometry, colorHex) {
     positionModeIndicator.id = 'positionModeIndicator';
     document.body.appendChild(positionModeIndicator);
 
-    function updateIndicators() {
-        let totalCount = cubeCount + coneCount + triangleCount;
+let lastSpeedText           = '';
+let lastCubeText            = '';
+let lastConeText            = '';
+let lastTriangleText        = '';
+let lastTotalSpawnedText    = '';
+let lastTotalObjectsText    = '';
+let lastSpawnModeText       = '';
+let lastSpinModeText        = '';
 
-        let cubePercent = totalCount > 0 ? (cubeCount / totalCount) * 100 : 0;
-        let conePercent = totalCount > 0 ? (coneCount / totalCount) * 100 : 0;
-        let trianglePercent = totalCount > 0 ? (triangleCount / totalCount) * 100 : 0;
+let lastDirectionText       = '';
+let lastPositionModeText    = '';
 
-        speedIndicator.textContent = 'Speed: ' + (speed * 100).toFixed(0) + '%';
-        cubeIndicator.innerHTML = `Cubes: ${cubeCount} (${cubePercent.toFixed(1)}%)`;
-        coneIndicator.innerHTML = `Cones: ${coneCount} (${conePercent.toFixed(1)}%)`;
-        triangleIndicator.innerHTML = `Triangles: ${triangleCount} (${trianglePercent.toFixed(1)}%)`;
-        totalSpawnedIndicator.textContent = `Total Spawned: ${totalSpawnedCount}`;
-        totalObjectsIndicator.textContent = `Total Objects: ${objects.length}`;
-        spawnModeIndicator.textContent = `Spawn Mode: ${spawnMode}`;
-        spinModeIndicator.textContent = `Spin Mode: ${spinDirection}`;
-    }
+function updateIndicators() {
+  const speedText        = 'Speed: '           + (speed * 100).toFixed(0) + '%';
+  const cubeText         = `Cubes: ${cubeCount} (${((cubeCount/totalCount())*100).toFixed(1)}%)`;
+  const coneText         = `Cones: ${coneCount} (${((coneCount/totalCount())*100).toFixed(1)}%)`;
+  const triangleText     = `Triangles: ${triangleCount} (${((triangleCount/totalCount())*100).toFixed(1)}%)`;
+  const totalSpawnedText = `Total Spawned: ${totalSpawnedCount}`;
+  const totalObjectsText = `Total Objects: ${objects.length}`;
+  const spawnModeText    = `Spawn Mode: ${spawnMode}`;
+  const spinModeText     = `Spin Mode: ${spinDirection}`;
+
+  if (speedText        !== lastSpeedText)        { speedIndicator.textContent        = speedText;        lastSpeedText        = speedText; }
+  if (cubeText         !== lastCubeText)         { cubeIndicator.textContent         = cubeText;         lastCubeText         = cubeText; }
+  if (coneText         !== lastConeText)         { coneIndicator.textContent         = coneText;         lastConeText         = coneText; }
+  if (triangleText     !== lastTriangleText)     { triangleIndicator.textContent     = triangleText;     lastTriangleText     = triangleText; }
+  if (totalSpawnedText !== lastTotalSpawnedText) { totalSpawnedIndicator.textContent = totalSpawnedText; lastTotalSpawnedText = totalSpawnedText; }
+  if (totalObjectsText !== lastTotalObjectsText) { totalObjectsIndicator.textContent = totalObjectsText; lastTotalObjectsText = totalObjectsText; }
+  if (spawnModeText    !== lastSpawnModeText)    { spawnModeIndicator.textContent    = spawnModeText;    lastSpawnModeText    = spawnModeText; }
+  if (spinModeText     !== lastSpinModeText)     { spinModeIndicator.textContent     = spinModeText;     lastSpinModeText     = spinModeText; }
+}
+
+function totalCount() {
+  return Math.max(1, cubeCount + coneCount + triangleCount);
+}
+
+function updateDirectionIndicator() {
+  let direction;
+  const angle = camera.rotation.y;
+  if (angle < -Math.PI * 0.75 || angle > Math.PI * 0.75)        direction = "Backward";
+  else if (angle < -Math.PI * 0.25)                             direction = "Left";
+  else if (angle < Math.PI * 0.25)                              direction = "Forward";
+  else                                                          direction = "Right";
+
+  const newText = `Camera Direction: ${direction}`;
+  if (newText !== lastDirectionText) {
+    directionIndicator.innerText = newText;
+    lastDirectionText = newText;
+  }
+}
+
+function updatePositionModeIndicator() {
+  const modeText = `Spawn Position Mode: ${spawnAtCamera ? 'Camera' : 'Random'}`;
+  if (modeText !== lastPositionModeText) {
+    positionModeIndicator.textContent = modeText;
+    lastPositionModeText = modeText;
+  }
+}
 
     let spinDirection = 'Forward';
 
@@ -382,11 +406,12 @@ function animate() {
 
 window.addEventListener('blur', () => {
   keys = {};
-});
+}, false);
 
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) keys = {};
-});
+}, false);
+
 
 cameraDirection.normalize().multiplyScalar(cameraSpeed);
 camera.position.add(cameraDirection);
@@ -497,10 +522,6 @@ updateDirectionIndicator();
 
     let keys = {};
     let spawnAtCamera = false;
-
-function updatePositionModeIndicator() {
-positionModeIndicator.textContent = `Spawn Position Mode: ${spawnAtCamera ? 'Camera' : 'Random'}`;
-}
 
 window.addEventListener('keydown', onKeyDown, false);
 window.addEventListener('keyup', onKeyUp,   false);
@@ -709,26 +730,29 @@ originalColors[mesh.uuid] = mesh.material.color.getHex();
 
 totalSpawnedCount++;
 sessionStorage.setItem('totalSpawned', totalSpawnedCount);
-
-hideShapeIndicators();
 }
+
 function removeObject() {
-if (objects.length > 0) {
-let objectToRemove = objects.pop();
+  if (objects.length === 0) return;
 
-let objectType = objectToRemove.geometry.type;
+  const mesh = objects.pop();
 
-if (objectType === 'BoxGeometry') {
-    if (cubeCount > 0) cubeCount--;
-} else if (objectType === 'ConeGeometry') {
-    if (coneCount > 0) coneCount--;
-} else if (objectType === 'TriangleGeometry') {
-    if (triangleCount > 0) triangleCount--;
-}
+  const type = mesh.geometry.type;
+  if (type === 'BoxGeometry'     && cubeCount    > 0) cubeCount--;
+  if (type === 'ConeGeometry'    && coneCount    > 0) coneCount--;
+  if (type === 'TriangleGeometry'&& triangleCount> 0) triangleCount--;
 
-scene.remove(objectToRemove);
-}
-hideShapeIndicators();
+  scene.remove(mesh);
+
+  mesh.geometry.dispose();
+  mesh.userData.advancedMat.dispose();
+  mesh.userData.basicMat.dispose();
+
+  delete originalColors[mesh.uuid];
+  selectedObjects.delete(mesh);
+
+  hideShapeIndicators();
+  updateIndicators();
 }
 
 window.addEventListener('load', () => {
@@ -797,71 +821,103 @@ function loadScene(file) {
   reader.onload = () => {
     const { settings = {}, objects: arr = [] } = JSON.parse(reader.result);
 
+    const loadCubes       = document.getElementById('loadCubes').checked;
+    const loadCones       = document.getElementById('loadCones').checked;
+    const loadTriangles   = document.getElementById('loadTriangles').checked;
+    const loadSpeed       = document.getElementById('loadSpeed').checked;
+    const loadSpawnMode   = document.getElementById('loadSpawnMode').checked;
+    const loadSpawnPos    = document.getElementById('loadSpawnPos').checked;
+    const loadSpinMode    = document.getElementById('loadSpinMode').checked;
+    const loadBackground  = document.getElementById('loadBackground').checked;
+    const loadTextColor   = document.getElementById('loadTextColor').checked;
+    const loadShadows     = document.getElementById('toggleShadows').checked;
+    const loadGridOption  = document.getElementById('loadGrid').checked;
+
     objects.forEach(m => scene.remove(m));
     objects = [];
     cubeCount = coneCount = triangleCount = 0;
 
-    if (settings.speed         !== undefined) speed       = settings.speed;
-    if (settings.spawnMode     !== undefined) spawnMode   = settings.spawnMode;
-    if (settings.spawnAtCamera !== undefined) {
+    if (loadSpeed && settings.speed !== undefined) {
+      speed = settings.speed;
+    }
+    if (loadSpawnMode && settings.spawnMode !== undefined) {
+      spawnMode = settings.spawnMode;
+    }
+    if (loadSpawnPos && settings.spawnAtCamera !== undefined) {
       spawnAtCamera = settings.spawnAtCamera;
       updatePositionModeIndicator();
     }
-    if (settings.spinDirection !== undefined) spinDirection = settings.spinDirection;
-    if (settings.background    !== undefined) {
+    if (loadSpinMode && settings.spinDirection !== undefined) {
+      spinDirection = settings.spinDirection;
+    }
+    if (loadBackground && settings.background !== undefined) {
       scene.background = new THREE.Color(settings.background);
       document.getElementById('bgColorPicker').value = settings.background;
     }
-    if (settings.textColor     !== undefined) {
+    if (loadTextColor && settings.textColor !== undefined) {
       document.getElementById('textColorPicker').value = settings.textColor;
       document.querySelectorAll(
         '#speedIndicator, #totalObjectsIndicator, #spawnModeIndicator,' +
         ' #directionIndicator, #spinModeIndicator, #positionModeIndicator'
       ).forEach(d => d.style.color = settings.textColor);
+      const affectLabel = document.getElementById('affectAllLabel');
+      if (affectLabel) affectLabel.style.color = settings.textColor;
     }
-
-    const affectLabel = document.getElementById('affectAllLabel');
-    if (affectLabel) affectLabel.style.color = settings.textColor;
-
-    if (settings.shadowsEnabled !== undefined) {
-      toggleShadows.checked         = settings.shadowsEnabled;
+    if (loadShadows && settings.shadowsEnabled !== undefined) {
+      document.getElementById('toggleShadows').checked = settings.shadowsEnabled;
       dirLight.visible              = settings.shadowsEnabled;
       renderer.shadowMap.enabled    = settings.shadowsEnabled;
     }
 
+    if (gridHelper) {
+        gridHelper.visible = loadGridOption;
+        document.getElementById('toggleGrid').checked = loadGridOption;
+    }
+
+
     arr.forEach(o => {
       let geom;
-      if      (o.type === 'BoxGeometry')      geom = cubeGeometry;
-      else if (o.type === 'ConeGeometry')     geom = coneGeometry;
-      else if (o.type === 'TriangleGeometry') geom = triangleGeometry;
-      else                                     geom = cubeGeometry;
+      let shouldLoad = false;
 
-      const mesh = createDualMaterialMesh(geom, 0xffffff);
+      if (o.type === 'BoxGeometry' && loadCubes) {
+        geom = cubeGeometry;
+        shouldLoad = true;
+      } else if (o.type === 'ConeGeometry' && loadCones) {
+        geom = coneGeometry;
+        shouldLoad = true;
+      } else if (o.type === 'TriangleGeometry' && loadTriangles) {
+        geom = triangleGeometry;
+        shouldLoad = true;
+      }
 
-      const adv = mesh.userData.advancedMat;
-      adv.color.set(o.advancedMat.color);
-      adv.metalness = o.advancedMat.metalness;
-      adv.roughness = o.advancedMat.roughness;
-      
-      const bas = mesh.userData.basicMat;
-      bas.color.set(o.basicMat.color);
+      if (shouldLoad) {
+        const mesh = createDualMaterialMesh(geom, 0xffffff);
 
-      mesh.position.fromArray(o.position);
-      mesh.rotation.set(...o.rotation);
+        const adv = mesh.userData.advancedMat;
+        adv.color.set(o.advancedMat.color);
+        adv.metalness = o.advancedMat.metalness;
+        adv.roughness = o.advancedMat.roughness;
 
-      mesh.castShadow    = !!o.castShadow;
-      mesh.receiveShadow = !!o.receiveShadow;
+        const bas = mesh.userData.basicMat;
+        bas.color.set(o.basicMat.color);
 
-      mesh.material = toggleShadows.checked
-        ? mesh.userData.advancedMat
-        : mesh.userData.basicMat;
+        mesh.position.fromArray(o.position);
+        mesh.rotation.set(...o.rotation);
 
-      scene.add(mesh);
-      objects.push(mesh);
+        mesh.castShadow    = !!o.castShadow;
+        mesh.receiveShadow = !!o.receiveShadow;
 
-      if      (o.type === 'BoxGeometry')      cubeCount++;
-      else if (o.type === 'ConeGeometry')     coneCount++;
-      else if (o.type === 'TriangleGeometry') triangleCount++;
+        mesh.material = document.getElementById('toggleShadows').checked
+          ? mesh.userData.advancedMat
+          : mesh.userData.basicMat;
+
+        scene.add(mesh);
+        objects.push(mesh);
+
+        if (o.type === 'BoxGeometry')      cubeCount++;
+        else if (o.type === 'ConeGeometry')     coneCount++;
+        else if (o.type === 'TriangleGeometry') triangleCount++;
+      }
     });
 
     updateIndicators();
@@ -920,10 +976,9 @@ Object.assign(panel.style, {
 });
 document.body.appendChild(panel);
 
-
+const DEFAULT_GRID_COLOR = '#888888';
 const affectLabel = document.querySelector('label[for="affectColorToggle"]');
 if (affectLabel) affectLabel.id = 'affectAllLabel';
-
 
 panel.innerHTML += `
   <div style="margin-bottom:12px">
@@ -937,13 +992,21 @@ panel.innerHTML += `
       Text Color:
       <input type="color" id="textColorPicker" value="#ffffff"
              style="margin-left:6px; vertical-align:middle">
-    </label>
   </div>
+  <label style="display:block; margin-bottom:6px">
+  Grid Color:
+  <input type="color" id="gridColorPicker" value="#ffffff"
+  style="margin-left:6px; vertical-align:middle">
+ </label>
   <label style="display:block; margin-bottom:6px">
   <input type="checkbox" id="toggleShadows" checked style="margin-left:6px; vertical-align:middle">
   Render Shadows
 </label>
-
+    </label>
+    <label style="display:block; margin-bottom:6px">
+    <input type="checkbox" id="toggleGrid" checked style="margin-left:6px; vertical-align:middle">
+    Render Grid
+    </label>
 
 <div style="margin-top:12px; border-top:1px solid #555; padding-top:10px">
     <strong>Load Scene Options</strong>
@@ -957,6 +1020,7 @@ panel.innerHTML += `
       <label><input type="checkbox" id="loadSpinMode" checked> Load Spin Mode</label><br>
       <label><input type="checkbox" id="loadBackground" checked> Load Background Color</label><br>
       <label><input type="checkbox" id="loadTextColor" checked> Load Text Color</label>
+      <label><input type="checkbox" id="loadGrid" checked> Load Grid</label><br>
     </div>
   </div>
 
@@ -985,6 +1049,7 @@ panel.innerHTML += `
     </ul>
   </div>
 `;
+
 toggleShadows.addEventListener('change', e => {
   const useShadows = e.target.checked;
 
@@ -1015,8 +1080,25 @@ settingsBtn.addEventListener('click', ()=>{
   panel.style.display = panel.style.display==='none' ? 'block' : 'none';
 });
 
-const groundGeo = new THREE.PlaneGeometry(200, 200);
+const gridSize      = 10000;
+const gridDivisions = 100;
+const gridHelper    = new THREE.GridHelper(gridSize, gridDivisions, 0x444444, 0x888888);
+gridHelper.position.y = -5;
+scene.add(gridHelper);
+const groundGeo = new THREE.PlaneGeometry(gridSize, gridSize);
 const groundMat = new THREE.ShadowMaterial({ opacity: 0.5 });
+
+const gridColorPicker = document.getElementById('gridColorPicker');
+gridColorPicker.addEventListener('input', e => {
+  gridHelper.material.color.set(e.target.value);
+});
+
+const toggleGrid = document.getElementById('toggleGrid');
+toggleGrid.addEventListener('change', e => {
+  gridHelper.visible = e.target.checked;
+});
+
+gridHelper.visible = toggleGrid.checked;
 
 const ground = new THREE.Mesh(groundGeo, groundMat);
 ground.rotation.x    = - Math.PI / 2;
