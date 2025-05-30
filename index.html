@@ -106,26 +106,16 @@
     let cameraDirection = new THREE.Vector3();
     let currentCameraIndex = 0;
     const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000 * 4);
     const renderer = new THREE.WebGLRenderer(); 
     renderer.setSize(window.innerWidth, window.innerHeight);
     document.body.appendChild(renderer.domElement);
     const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
     dirLight.position.set(5, 10, 7.5);
     dirLight.castShadow = true;
+    dirLight.shadow.mapSize.width = 4096;
+    dirLight.shadow.mapSize.height = 4096;
     scene.add(dirLight);
-    renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type    = THREE.PCFSoftShadowMap;
-    const d = 100;
-    dirLight.shadow.mapSize.set(4096, 4096);
-    dirLight.shadow.camera.left   = -d;
-    dirLight.shadow.camera.right  =  d;
-    dirLight.shadow.camera.top    =  d;
-    dirLight.shadow.camera.bottom = -d;
-    dirLight.shadow.camera.near = 0.1;
-    dirLight.shadow.camera.far  = 500;
-    dirLight.shadow.bias = -0.0005;
-    dirLight.shadow.camera.updateProjectionMatrix();
 
     camera.position.z = 5;
 
@@ -404,6 +394,16 @@ function animate() {
     camera.position.add(move);
   }
 
+const snapX = Math.floor(camera.position.x / cellSize) * cellSize;
+const snapZ = Math.floor(camera.position.z / cellSize) * cellSize;
+
+gridHelper.position.x = snapX;
+gridHelper.position.z = snapZ;
+
+ground.position.x = snapX;
+ground.position.z = snapZ;
+
+
 window.addEventListener('blur', () => {
   keys = {};
 }, false);
@@ -660,76 +660,74 @@ shapeIndicatorsContainer.style.display = 'block';
 }
 
 function spawnObject() {
-let geometry;
-let material;
+    let geometry;
+    let material;
 
+    switch (spawnMode) {
+        case 'Cube':
+            geometry = cubeGeometry;
+            cubeCount++;
+            break;
+        case 'Cone':
+            geometry = coneGeometry;
+            coneCount++;
+            break;
+        case 'Triangle':
+            geometry = triangleGeometry;
+            triangleCount++;
+            break;
+        default:
+            let randomShape = Math.random();
 
-switch (spawnMode) {
-case 'Cube':
-    geometry = cubeGeometry;
-    cubeCount++;
-    break;
-case 'Cone':
-    geometry = coneGeometry;
-    coneCount++;
-    break;
-case 'Triangle':
-    geometry = triangleGeometry;
-    triangleCount++;
-    break;
-default:
-    let randomShape = Math.random();
-
-    if (randomShape < 0.33) {
-        geometry = cubeGeometry;
-        cubeCount++;
-    } else if (randomShape < 0.66) {
-        geometry = coneGeometry;
-        coneCount++;
-    } else {
-        geometry = triangleGeometry;
-        triangleCount++;
+            if (randomShape < 0.33) {
+                geometry = cubeGeometry;
+                cubeCount++;
+            } else if (randomShape < 0.66) {
+                geometry = coneGeometry;
+                coneCount++;
+            } else {
+                geometry = triangleGeometry;
+                triangleCount++;
+            }
+            break;
     }
-    break;
-}
 
     const randomColor = Math.floor(Math.random() * 16777215);
-   new THREE.MeshStandardMaterial({ color: mainColor, flatShading: false })
-   material = new THREE.MeshBasicMaterial({
-      color: affectAllObjects ? mainColor : randomColor
-   });
+    material = new THREE.MeshBasicMaterial({
+        color: affectAllObjects ? mainColor : randomColor
+    });
 
-let mesh = createDualMaterialMesh(
-    geometry,
-    affectAllObjects ? mainColor : randomColor
- );
- const shadowsOn = document.getElementById('toggleShadows').checked;
- mesh.material = shadowsOn
-     ? mesh.userData.advancedMat
-     : mesh.userData.basicMat;
-mesh.castShadow    = true;
-mesh.receiveShadow = true;
-mesh.position.x = (Math.random() - 0.5) * 10;
-mesh.position.y = (Math.random() - 0.5) * 10;
-mesh.position.z = (Math.random() - 0.5) * 10;
+    let mesh = createDualMaterialMesh(
+        geometry,
+        affectAllObjects ? mainColor : randomColor
+    );
+    const shadowsOn = document.getElementById('toggleShadows').checked;
+    mesh.material = shadowsOn
+        ? mesh.userData.advancedMat
+        : mesh.userData.basicMat;
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
 
-if (spawnAtCamera) {
-mesh.position.copy(camera.position);
-mesh.position.z -= 5;
-} else {
-mesh.position.x = (Math.random() - 0.5) * 10;
-mesh.position.y = (Math.random() - 0.5) * 10;
-mesh.position.z = (Math.random() - 0.5) * 10;
-}
+    if (spawnAtCamera) {
+        mesh.position.copy(camera.position);
+        mesh.position.z -= 5;
+    } else {
+        mesh.position.x = (Math.random() - 0.5) * 10;
+        mesh.position.y = (Math.random() - 0.5) * 10;
+        mesh.position.z = (Math.random() - 0.5) * 10;
+    }
 
-scene.add(mesh);
-objects.push(mesh);
+    scene.add(mesh);
+    objects.push(mesh);
 
 
-originalColors[mesh.uuid] = mesh.material.color.getHex();
+    originalColors[mesh.uuid] = mesh.material.color.getHex();
 
-totalSpawnedCount++;
-sessionStorage.setItem('totalSpawned', totalSpawnedCount);
+    totalSpawnedCount++;
+    sessionStorage.setItem('totalSpawned', totalSpawnedCount);
+
+    updateIndicators();
+    hideShapeIndicators();
 }
 
 function removeObject() {
@@ -1080,13 +1078,21 @@ settingsBtn.addEventListener('click', ()=>{
   panel.style.display = panel.style.display==='none' ? 'block' : 'none';
 });
 
-const gridSize      = 10000;
-const gridDivisions = 100;
-const gridHelper    = new THREE.GridHelper(gridSize, gridDivisions, 0x444444, 0x888888);
+const gridSize       = 1000;
+const gridDivisions  = 100;
+const gridHelper     = new THREE.GridHelper(gridSize, gridDivisions, 0x444444, 0x888888);
 gridHelper.position.y = -5;
 scene.add(gridHelper);
+
 const groundGeo = new THREE.PlaneGeometry(gridSize, gridSize);
 const groundMat = new THREE.ShadowMaterial({ opacity: 0.5 });
+const ground    = new THREE.Mesh(groundGeo, groundMat);
+ground.rotation.x = -Math.PI/2;
+ground.position.y = -5;
+ground.receiveShadow = true;
+scene.add(ground);
+
+const cellSize = gridSize / gridDivisions;
 
 const gridColorPicker = document.getElementById('gridColorPicker');
 gridColorPicker.addEventListener('input', e => {
@@ -1098,16 +1104,18 @@ toggleGrid.addEventListener('change', e => {
   gridHelper.visible = e.target.checked;
 });
 
-gridHelper.visible = toggleGrid.checked;
-
-const ground = new THREE.Mesh(groundGeo, groundMat);
-ground.rotation.x    = - Math.PI / 2;
-ground.position.y    = -5;
-
-ground.receiveShadow = true;
-ground.castShadow    = false;
-
-scene.add(ground);
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type    = THREE.PCFSoftShadowMap;
+    const d = 30;
+    dirLight.shadow.mapSize.set(4096, 4096);
+    dirLight.shadow.camera.left   = -d;
+    dirLight.shadow.camera.right  =  d;
+    dirLight.shadow.camera.top    =  d;
+    dirLight.shadow.camera.bottom = -d;
+    dirLight.shadow.camera.near = 0.1;
+    dirLight.shadow.camera.far  = 500;
+    dirLight.shadow.bias = -0.0005;
+    dirLight.shadow.camera.updateProjectionMatrix();
 
     animate();
 }
