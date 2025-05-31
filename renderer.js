@@ -1,3 +1,5 @@
+ import * as THREE from 'https://threejs.org/build/three.module.js';
+
     if (typeof THREE !== 'undefined') {
     let isDraggingObject = false;
     let isRotatingCamera = false;
@@ -600,18 +602,20 @@ function spawnObject() {
     mesh.castShadow = true;
     mesh.receiveShadow = true;
 
-    if (spawnAtCamera) {
-        mesh.position.copy(camera.position);
-        mesh.position.z -= 5;
-    } else {
-        mesh.position.x = (Math.random() - 0.5) * 10;
-        mesh.position.y = (Math.random() - 0.5) * 10;
-        mesh.position.z = (Math.random() - 0.5) * 10;
-    }
+     if (spawnAtCamera) {
+         const spawnDistance = 5;
+         const dir = new THREE.Vector3();
+         camera.getWorldDirection(dir);
+         mesh.position.copy(camera.position)
+                     .add(dir.multiplyScalar(spawnDistance));
+     } else {
+         mesh.position.x = (Math.random() - 0.5) * 10;
+         mesh.position.y = (Math.random() - 0.5) * 10;
+         mesh.position.z = (Math.random() - 0.5) * 10;
+     }
 
     scene.add(mesh);
     objects.push(mesh);
-
 
     originalColors[mesh.uuid] = mesh.material.color.getHex();
 
