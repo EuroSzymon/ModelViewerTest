@@ -14,7 +14,7 @@
             font-family: 'Inter', sans-serif;
         }
 
-        #speedIndicator, #totalObjectsIndicator, #spawnModeIndicator, #directionIndicator, #colorPickerContainer, #spinModeIndicator {
+        #speedIndicator, #totalObjectsIndicator, #spawnModeIndicator, #colorPickerContainer, #spinModeIndicator {
             position: absolute;
             top: 10px;
             color: white;
@@ -25,19 +25,15 @@
         }
 
         #totalObjectsIndicator {
-            left: 1210px;
+            left: 975px;
         }
 
         #spawnModeIndicator {
             left: 370px; 
         }
 
-        #directionIndicator {
-            left: 820px;
-        }
-
         #spinModeIndicator {
-            left: 1040px; 
+            left: 810px; 
         }
 
         #colorPickerContainer {
@@ -96,7 +92,8 @@
     import * as THREE from 'https://threejs.org/build/three.module.js';
 
     if (typeof THREE !== 'undefined') {
-    
+    let isDraggingObject = false;
+    let isRotatingCamera = false;
     let isMouseDown = false;
     let mouseX = 0;
     let mouseY = 0;
@@ -141,34 +138,35 @@ document.getElementById('directionIndicator');
 function updateCamera() {
     camera.position.copy(cameraPositions[currentCameraIndex].position);
     camera.rotation.copy(cameraPositions[currentCameraIndex].rotation);
-    updateDirectionIndicator();
 }
 
 window.addEventListener('resize', () => {
     camera.aspect = window.innerWidth / window.innerHeight;
     camera.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight);
-    updateDirectionIndicator();
 });
     
-    document.addEventListener('mousedown', (event) => {
-if (event.button === 0) {
-mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
-mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+renderer.domElement.addEventListener('mousedown', (event) => {
+  if (event.button !== 0) return;
 
-raycaster.setFromCamera(mouse, camera);
+  previousMousePosition.x = event.clientX;
+  previousMousePosition.y = event.clientY;
 
-const intersects = raycaster.intersectObjects(objects, true); 
+  mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+  mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
 
-if (intersects.length > 0) {
-    let clickedObject = intersects[0].object;
-    selectedObject = clickedObject;
-    isMoving = true;
+  raycaster.setFromCamera(mouse, camera);
+  const intersects = raycaster.intersectObjects(objects, true);
 
-    previousMousePosition.x = event.clientX;
-    previousMousePosition.y = event.clientY;
-}
-}
+  if (intersects.length > 0) {
+    selectedObject   = intersects[0].object;
+    isDraggingObject = true;
+    isRotatingCamera = false;
+  } else {
+    selectedObject   = null;
+    isDraggingObject = false;
+    isRotatingCamera = true;
+  }
 });
 
 window.addEventListener('wheel', event => {
@@ -181,12 +179,12 @@ window.addEventListener('wheel', event => {
   camera.position.addScaledVector(dir, zoomSpeed * sign);
 });
 
+renderer.domElement.addEventListener('mouseup', (event) => {
+  if (event.button !== 0) return;
 
-document.addEventListener('mouseup', (event) => {
-if (event.button === 0) {
-isMoving = false;
-selectedObject = null;
-}
+  isDraggingObject = false;
+  isRotatingCamera = false;
+  selectedObject   = null;
 });
 
 function createDualMaterialMesh(geometry, colorHex) {
@@ -295,10 +293,6 @@ function createDualMaterialMesh(geometry, colorHex) {
     spawnModeIndicator.id = 'spawnModeIndicator';
     document.body.appendChild(spawnModeIndicator);
 
-    let directionIndicator = document.createElement('div');
-    directionIndicator.id = 'directionIndicator';
-    document.body.appendChild(directionIndicator);
-
     let spinModeIndicator = document.createElement('div');
     spinModeIndicator.id = 'spinModeIndicator';
     spinModeIndicator.textContent = 'Spin Mode: Forward';
@@ -342,21 +336,6 @@ function updateIndicators() {
 
 function totalCount() {
   return Math.max(1, cubeCount + coneCount + triangleCount);
-}
-
-function updateDirectionIndicator() {
-  let direction;
-  const angle = camera.rotation.y;
-  if (angle < -Math.PI * 0.75 || angle > Math.PI * 0.75)        direction = "Backward";
-  else if (angle < -Math.PI * 0.25)                             direction = "Left";
-  else if (angle < Math.PI * 0.25)                              direction = "Forward";
-  else                                                          direction = "Right";
-
-  const newText = `Camera Direction: ${direction}`;
-  if (newText !== lastDirectionText) {
-    directionIndicator.innerText = newText;
-    lastDirectionText = newText;
-  }
 }
 
 function updatePositionModeIndicator() {
@@ -413,7 +392,6 @@ document.addEventListener('visibilitychange', () => {
 }, false);
 
 
-cameraDirection.normalize().multiplyScalar(cameraSpeed);
 camera.position.add(cameraDirection);
 
 if (isMouseDown) {
@@ -491,19 +469,16 @@ selectedObject = null;
         }
     });
 
-document.addEventListener('mousemove', event => {
-  if (isMoving && selectedObject) {
-    const deltaX = event.clientX - previousMousePosition.x;
-    const deltaY = event.clientY - previousMousePosition.y;
-    previousMousePosition.x = event.clientX;
-    previousMousePosition.y = event.clientY;
+window.addEventListener('mousemove', (event) => {
+  const deltaX = event.clientX - previousMousePosition.x;
+  const deltaY = event.clientY - previousMousePosition.y;
 
-    const cameraDir = new THREE.Vector3();
+  if (isDraggingObject && selectedObject) {
+    const cameraDir   = new THREE.Vector3();
     camera.getWorldDirection(cameraDir);
-    const cameraUp  = camera.up.clone().normalize();
-    const cameraRight = new THREE.Vector3()
-      .crossVectors(cameraDir, cameraUp)
-      .normalize();
+
+    const cameraUp    = camera.up.clone().normalize();
+    const cameraRight = new THREE.Vector3().crossVectors(cameraDir, cameraUp).normalize();
 
     const movement = new THREE.Vector3();
     movement.addScaledVector(cameraRight,  deltaX * 0.01);
@@ -515,10 +490,20 @@ document.addEventListener('mousemove', event => {
 
     selectedObject.position.add(movement);
   }
+  else if (isRotatingCamera) {
+    camera.rotation.order = 'YXZ';
+    camera.rotation.y -= deltaX * sensitivity;
+    camera.rotation.x -= deltaY * sensitivity;
+
+    const PI_2 = Math.PI / 2 - 0.01;
+    camera.rotation.x = Math.max(-PI_2, Math.min(PI_2, camera.rotation.x));
+
+    }
+
+  previousMousePosition.x = event.clientX;
+  previousMousePosition.y = event.clientY;
 });
 
-
-updateDirectionIndicator();
 
     let keys = {};
     let spawnAtCamera = false;
@@ -813,12 +798,11 @@ async function saveScene() {
   }
 }
 
-function loadScene(file) {
-  const reader = new FileReader();
+ function loadScene(file) {
+   const reader = new FileReader();
 
-  reader.onload = () => {
+   reader.onload = () => {
     const { settings = {}, objects: arr = [] } = JSON.parse(reader.result);
-
     const loadCubes       = document.getElementById('loadCubes').checked;
     const loadCones       = document.getElementById('loadCones').checked;
     const loadTriangles   = document.getElementById('loadTriangles').checked;
@@ -831,98 +815,61 @@ function loadScene(file) {
     const loadShadows     = document.getElementById('toggleShadows').checked;
     const loadGridOption  = document.getElementById('loadGrid').checked;
 
-    objects.forEach(m => scene.remove(m));
-    objects = [];
-    cubeCount = coneCount = triangleCount = 0;
+     objects.forEach(m => scene.remove(m));
+     objects = [];
+     cubeCount = coneCount = triangleCount = 0;
 
-    if (loadSpeed && settings.speed !== undefined) {
-      speed = settings.speed;
-    }
-    if (loadSpawnMode && settings.spawnMode !== undefined) {
-      spawnMode = settings.spawnMode;
-    }
-    if (loadSpawnPos && settings.spawnAtCamera !== undefined) {
-      spawnAtCamera = settings.spawnAtCamera;
-      updatePositionModeIndicator();
-    }
-    if (loadSpinMode && settings.spinDirection !== undefined) {
-      spinDirection = settings.spinDirection;
-    }
-    if (loadBackground && settings.background !== undefined) {
-      scene.background = new THREE.Color(settings.background);
-      document.getElementById('bgColorPicker').value = settings.background;
-    }
-    if (loadTextColor && settings.textColor !== undefined) {
-      document.getElementById('textColorPicker').value = settings.textColor;
-      document.querySelectorAll(
-        '#speedIndicator, #totalObjectsIndicator, #spawnModeIndicator,' +
-        ' #directionIndicator, #spinModeIndicator, #positionModeIndicator'
-      ).forEach(d => d.style.color = settings.textColor);
-      const affectLabel = document.getElementById('affectAllLabel');
-      if (affectLabel) affectLabel.style.color = settings.textColor;
-    }
-    if (loadShadows && settings.shadowsEnabled !== undefined) {
-      document.getElementById('toggleShadows').checked = settings.shadowsEnabled;
-      dirLight.visible              = settings.shadowsEnabled;
-      renderer.shadowMap.enabled    = settings.shadowsEnabled;
-    }
+     arr.forEach(o => {
+       let geom;
+       let shouldLoad = false;
 
-    if (gridHelper) {
-        gridHelper.visible = loadGridOption;
-        document.getElementById('toggleGrid').checked = loadGridOption;
-    }
+       if (o.type === 'BoxGeometry' && loadCubes) {
+         geom = cubeGeometry;
+         shouldLoad = true;
+       } else if (o.type === 'ConeGeometry' && loadCones) {
+         geom = coneGeometry;
+         shouldLoad = true;
+       } else if (o.type === 'TriangleGeometry' && loadTriangles) {
+         geom = triangleGeometry;
+         shouldLoad = true;
+       }
 
+       if (shouldLoad) {
+         const mesh = createDualMaterialMesh(geom, 0xffffff);
 
-    arr.forEach(o => {
-      let geom;
-      let shouldLoad = false;
+         const adv = mesh.userData.advancedMat;
+         adv.color.set(o.advancedMat.color);
+         adv.metalness = o.advancedMat.metalness;
+         adv.roughness = o.advancedMat.roughness;
 
-      if (o.type === 'BoxGeometry' && loadCubes) {
-        geom = cubeGeometry;
-        shouldLoad = true;
-      } else if (o.type === 'ConeGeometry' && loadCones) {
-        geom = coneGeometry;
-        shouldLoad = true;
-      } else if (o.type === 'TriangleGeometry' && loadTriangles) {
-        geom = triangleGeometry;
-        shouldLoad = true;
-      }
+         const bas = mesh.userData.basicMat;
+         bas.color.set(o.basicMat.color);
 
-      if (shouldLoad) {
-        const mesh = createDualMaterialMesh(geom, 0xffffff);
+         mesh.position.fromArray(o.position);
+         mesh.rotation.set(...o.rotation);
+         mesh.castShadow    = !!o.castShadow;
+         mesh.receiveShadow = !!o.receiveShadow;
 
-        const adv = mesh.userData.advancedMat;
-        adv.color.set(o.advancedMat.color);
-        adv.metalness = o.advancedMat.metalness;
-        adv.roughness = o.advancedMat.roughness;
+         mesh.material = document.getElementById('toggleShadows').checked
+           ? mesh.userData.advancedMat
+           : mesh.userData.basicMat;
 
-        const bas = mesh.userData.basicMat;
-        bas.color.set(o.basicMat.color);
+         scene.add(mesh);
+         objects.push(mesh);
 
-        mesh.position.fromArray(o.position);
-        mesh.rotation.set(...o.rotation);
-
-        mesh.castShadow    = !!o.castShadow;
-        mesh.receiveShadow = !!o.receiveShadow;
-
-        mesh.material = document.getElementById('toggleShadows').checked
-          ? mesh.userData.advancedMat
-          : mesh.userData.basicMat;
-
-        scene.add(mesh);
-        objects.push(mesh);
-
-        if (o.type === 'BoxGeometry')      cubeCount++;
-        else if (o.type === 'ConeGeometry')     coneCount++;
-        else if (o.type === 'TriangleGeometry') triangleCount++;
-      }
-    });
+         if (o.type === 'BoxGeometry')       cubeCount++;
+         else if (o.type === 'ConeGeometry')       coneCount++;
+         else if (o.type === 'TriangleGeometry')   triangleCount++;
+       }
+     });
 
     updateIndicators();
-  };
+    selectedObject   = null;
+    isDraggingObject = false;
+   };
 
-  reader.readAsText(file);
-}
+   reader.readAsText(file);
+ }
 
 const saveBtn = document.createElement('button');
 saveBtn.textContent = 'Save Scene';
@@ -1038,8 +985,6 @@ panel.innerHTML += `
       <li><code>.</code>: Cycle spawn mode ▶</li>
       <li><code>,</code>: Cycle spawn mode ◀</li>
       <li><code>/</code>: Toggle spawn position mode</li>
-      <li><code>M</code>: Next camera position</li>
-      <li><code>N</code>: Previous camera position</li>
       <li><code>↑</code>: Increase simulation speed</li>
       <li><code>↓</code>: Decrease simulation speed</li>
       <li><code>Enter</code>: Spin mode ▶</li>
@@ -1068,7 +1013,7 @@ document.getElementById('textColorPicker')
   .addEventListener('input', e => {
     document.querySelectorAll(
       '#speedIndicator, #totalObjectsIndicator, #spawnModeIndicator, ' +
-      '#directionIndicator, #spinModeIndicator, #positionModeIndicator'
+      '#spinModeIndicator, #positionModeIndicator'
     ).forEach(d => d.style.color = e.target.value);
     const al = document.getElementById('affectAllLabel');
     if (al) al.style.color = e.target.value;
@@ -1121,6 +1066,9 @@ toggleGrid.addEventListener('change', e => {
 }
 </script>
 </head>
+<body>
+</body>
+</html>
 <body>
 </body>
 </html>
